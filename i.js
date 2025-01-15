@@ -3,13 +3,13 @@ const chrome = require('selenium-webdriver/chrome');
 const path = require('path');
 const chromedriver = require('chromedriver');
 
-// Setup ChromeDriver path
-chrome.setDefaultService(new chrome.ServiceBuilder(path.resolve(chromedriver.path)).build());
-
 // Function to fetch download link
 const fetchDownloadLink = async () => {
-  // Initialize Selenium WebDriver
-  const driver = await new Builder().forBrowser('chrome').build();
+  // Initialize Selenium WebDriver and pass the chromedriver path
+  const driver = await new Builder()
+    .forBrowser('chrome')
+    .setChromeOptions(new chrome.Options()) // Setting Chrome options
+    .build();
 
   try {
     // Navigate to the URL
