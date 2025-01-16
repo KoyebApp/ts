@@ -51,8 +51,6 @@ async function post(url, formdata = {}, cookies) {
   });
 }
 
-
-
 async function photooxy(url, text) {
   const geturl = await fetch(url, {
     method: "GET",
@@ -110,4 +108,26 @@ async function photooxy(url, text) {
   return result
 }
 
-module.exports = photooxy
+// Test function to check if photooxy is working and retrieving data
+async function testPhotooxy() {
+  const testUrl = "https://photooxy.com/logo-and-text-effects/make-tik-tok-text-effect-375.html"; // Example URL (Replace with an actual URL)
+  const testText = "Sample Text";
+
+  try {
+    const imageData = await photooxy(testUrl, testText);
+
+    // Check if the result is not empty and contains image data
+    if (imageData) {
+      console.log("Test Passed: Image data successfully retrieved.");
+    } else {
+      console.error("Test Failed: No image data returned.");
+    }
+  } catch (error) {
+    console.error("Test Failed: ", error.message);
+  }
+}
+
+// Call the test function
+testPhotooxy();
+
+module.exports = photooxy;
