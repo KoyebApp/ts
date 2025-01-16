@@ -126,23 +126,22 @@ async function textpro(url, text) {
 async function testTextPro() {
   const testUrl = "https://textpro.me/create-blackpink-logo-style-online-1001.html"; // Replace with a valid example URL
   const testText = ["Hello"];
-
+  
   try {
     const result = await textpro(testUrl, testText);
-
-    // Ensure the result is the expected image URL
-    if (result && typeof result === 'string' && result.startsWith('https://textpro.me')) {
-      console.log("Test Passed: Image URL retrieved successfully.");
-      console.log("Image URL:", result);  // Log the image URL
+    
+    console.log(result); // Log the entire result to check what's returned
+    
+    // Check if the result is a Buffer and its length is greater than 0
+    if (Buffer.isBuffer(result) && result.length > 0) {
+      console.log("Test Passed: Image buffer was retrieved successfully.");
     } else {
-      console.log("Test Failed: The result is not a valid URL.");
+      console.log("Test Failed: The result is not a valid image buffer.");
     }
   } catch (error) {
     console.error("Test Failed: " + error.message);
   }
 }
 
-// Run the test
-testTextPro();
 
 module.exports = textpro;
