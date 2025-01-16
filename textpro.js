@@ -1,14 +1,13 @@
 const fetch = require("node-fetch");
 const cheerio = require("cheerio");
 const cookie = require("cookie");
-const axios = require('axios')
+const axios = require('axios');
 const FormData = require("form-data");
 
-// TextPro Scraper function
-
-async function getBuffer(url, options){
+// Helper function to make a GET request and return a buffer (not used in final output)
+async function getBuffer(url, options) {
   try {
-    options ? options : {}
+    options = options || {};
     const res = await axios({
       method: "get",
       url,
@@ -18,13 +17,14 @@ async function getBuffer(url, options){
       },
       ...options,
       responseType: 'arraybuffer'
-    })
-    return res.data
+    });
+    return res.data;
   } catch (err) {
-    return err
+    return err;
   }
 }
 
+// Helper function to make a POST request (used for sending form data)
 async function post(url, formdata = {}, cookies) {
   let encode = encodeURIComponent;
   let body = Object.keys(formdata)
@@ -38,6 +38,7 @@ async function post(url, formdata = {}, cookies) {
       return out.join("&");
     })
     .join("&");
+
   return await fetch(`${url}?${body}`, {
     method: "GET",
     headers: {
@@ -49,9 +50,10 @@ async function post(url, formdata = {}, cookies) {
   });
 }
 
+// TextPro Scraper function
 async function textpro(url, text) {
   if (!/^https:\/\/textpro\.me\/.+\.html$/.test(url))
-    throw new Error("Url Salah!!");
+    throw new Error("Invalid URL!");
 
   const geturl = await fetch(url, {
     method: "GET",
@@ -61,6 +63,8 @@ async function textpro(url, text) {
   });
 
   const caritoken = await geturl.text();
+
+  // Extract cookies from the response headers
   let hasilcookie = geturl.headers
     .get("set-cookie")
     .split(",")
@@ -68,16 +72,21 @@ async function textpro(url, text) {
     .reduce((a, c) => {
       return { ...a, ...c };
     }, {});
+
+  // Select the relevant cookies
   hasilcookie = {
     __cfduid: hasilcookie.__cfduid,
     PHPSESSID: hasilcookie.PHPSESSID,
   };
+
+  // Serialize cookies for the POST request
   hasilcookie = Object.entries(hasilcookie)
     .map(([name, value]) => cookie.serialize(name, value))
     .join("; ");
 
   const $ = cheerio.load(caritoken);
   const token = $('input[name="token"]').attr("value");
+
   const form = new FormData();
   if (typeof text === "string") text = [text];
   for (let texts of text) form.append("text[]", texts);
@@ -86,6 +95,7 @@ async function textpro(url, text) {
   form.append("build_server", "https://textpro.me");
   form.append("build_server_id", 1);
 
+  // Send POST request with form data to generate image
   const geturl2 = await fetch(url, {
     method: "POST",
     headers: {
@@ -100,48 +110,50 @@ async function textpro(url, text) {
 
   const caritoken2 = await geturl2.text();
   const token2 = /<div.*?id="form_value".+>(.*?)<\/div>/.exec(caritoken2);
-  if (!token2) throw new Error("Token Tidak Ditemukan!!");
+  if (!token2) throw new Error("Token not found!");
 
+  // Send a POST request to create the image and get the response
   const prosesimage = await post(
     "https://textpro.me/effect/create-image",
     JSON.parse(token2[1]),
     hasilcookie
   );
 
-  // Log the entire API response to debug the result
+  // Log the entire API response for debugging
   const hasil = await prosesimage.json();
-  console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log the full response for inspection
+  console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log full response for inspection
 
-  // Check if `fullsize_image` is available in the response
+  // Extract and return the processed image URL
   if (hasil && hasil.fullsize_image) {
-    const hassil = `https://textpro.me${hasil.fullsize_image}`;
-    console.log("Processed Image URL:", hassil);
-    return hassil; // Return the image URL
+    const imageUrl = `https://textpro.me${hasil.fullsize_image}`;
+    console.log("Processed Image URL:", imageUrl); // Log the final image URL
+    return imageUrl; // Return the image URL
   } else {
     throw new Error("Failed to retrieve image URL from response.");
   }
 }
 
-// Test function to check if textpro retrieves the expected URL and data
+// Test function to check if textpro retrieves the expected URL
 async function testTextPro() {
-  const testUrl = "https://textpro.me/create-blackpink-logo-style-online-1001.html"; // Replace with a valid example URL
+  const testUrl = "https://textpro.me/create-online-reflected-neon-text-effect-1157.html"; // Replace with a valid URL
   const testText = ["Hello"];
-  
+
   try {
     const result = await textpro(testUrl, testText);
-    
-    console.log(result); // Log the entire result to check what's returned
-    
-    // Check if the result is a Buffer and its length is greater than 0
-    if (Buffer.isBuffer(result) && result.length > 0) {
-      console.log("Test Passed: Image buffer was retrieved successfully.");
+    console.log("Processed Image URL:", result); // Log the URL to check the result
+
+    // Ensure the result is a string and starts with the correct URL
+    if (typeof result === "string" && result.startsWith("https://textpro.me")) {
+      console.log("Test Passed: Image URL retrieved successfully.");
     } else {
-      console.log("Test Failed: The result is not a valid image buffer.");
+      console.log("Test Failed: The result is not a valid image URL.");
     }
   } catch (error) {
     console.error("Test Failed: " + error.message);
   }
 }
 
+// Run the test
+testTextPro();
 
 module.exports = textpro;
