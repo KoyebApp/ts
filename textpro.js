@@ -108,8 +108,10 @@ async function textpro(url, text) {
     hasilcookie
   );
 
+  // Log the entire API response to debug the result
   const hasil = await prosesimage.json();
-  
+  console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log the full response for inspection
+
   // Check if `fullsize_image` is available in the response
   if (hasil && hasil.fullsize_image) {
     const hassil = `https://textpro.me${hasil.fullsize_image}`;
