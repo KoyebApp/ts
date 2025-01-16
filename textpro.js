@@ -118,8 +118,8 @@ async function textpro(url, text) {
 
 // Test function to check if textpro retrieves expected URL and data
 async function testTextPro() {
-  const testUrl = "https://textpro.me/example-effect.html"; // Replace with a valid example URL
-  const testText = ["Hello World"];
+  const testUrl = "https://textpro.me/create-blackpink-logo-style-online-1001.html"; // Replace with a valid example URL
+  const testText = ["Hello"];
   
   try {
     const result = await textpro(testUrl, testText);
