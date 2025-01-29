@@ -4,7 +4,11 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
   let browser;
   try {
     // Launch a browser instance
-    browser = await puppeteer.launch({ headless: false }); // set headless: true if you want it to run without opening the browser
+    const browser = await puppeteer.launch({ 
+  headless: true,   // Set this to false if you want to see the browser GUI
+  args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
+    // set headless: true if you want it to run without opening the browser
     const page = await browser.newPage();
 
     // Navigate to the page
