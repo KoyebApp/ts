@@ -10,7 +10,7 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
     });
 
     const page = await browser.newPage();
-    
+
     // Navigate to the page
     console.log('Navigating to the website...');
     await page.goto('https://yt.savetube.me/1kejjj1?id=361014378', { waitUntil: 'domcontentloaded' });
@@ -29,11 +29,21 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
     console.log('Clicking the "Get Video" button...');
     await page.click('button[type="submit"]');
 
-    // Check for the "Get Link" button presence and click it
+    // Wait for the "Get Link" button to appear
     console.log('Waiting for the "Get Link" button...');
-    await page.waitForSelector('button.w-[130px]'); // Adjust selector for better matching
+    await page.waitForSelector('button.w-[130px]', { visible: true, timeout: 60000 });
+    
+    // Debugging: Log if the button is found and clickable
+    const buttonText = await page.evaluate(() => {
+      const button = document.querySelector('button.w-[130px]');
+      return button ? button.innerText : null;
+    });
+    
+    console.log('Found button text:', buttonText);
+
+    // Click the "Get Link" button
     console.log('Clicking the "Get Link" button...');
-    await page.click('button.w-[130px]');  // You can adjust this selector as needed
+    await page.click('button.w-[130px]');
 
     // Wait for the download link to appear
     console.log('Waiting for the download link...');
