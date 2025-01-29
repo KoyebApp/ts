@@ -29,13 +29,19 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
     console.log('Clicking the "Get Video" button...');
     await page.click('button[type="submit"]');
 
-    // Wait for the "Get Link" button to appear after clicking "Get Video"
-    console.log('Waiting for the "Get Link" button...');
-    await page.waitForSelector('button:has-text("Get Link")', { visible: true, timeout: 30000 });
+    // Check if the "Get Link" button exists after clicking the "Get Video" button
+    console.log('Checking if "Get Link" button exists...');
+    const getLinkExists = await page.evaluate(() => {
+      const button = document.querySelector('button:has-text("Get Link")');
+      return button !== null;
+    });
 
-    // Click the "Get Link" button
-    console.log('Clicking the "Get Link" button...');
-    await page.click('button:has-text("Get Link")');
+    if (getLinkExists) {
+      console.log('"Get Link" button found. Clicking it...');
+      await page.click('button:has-text("Get Link")');
+    } else {
+      console.log('The "Get Link" button was not found!');
+    }
 
     // Wait for the download link to appear
     console.log('Waiting for the download link...');
