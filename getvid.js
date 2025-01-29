@@ -71,5 +71,5 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
 }
 
 // Replace this with any YouTube URL you want to test
-const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+const youtubeUrl = 'https://youtube.com/shorts/aHgbehBPeQI?si=Uqzh01OA9wZMKXbp';
 fetchVideoDownloadUrl(youtubeUrl);
