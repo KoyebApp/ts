@@ -3,14 +3,14 @@ const puppeteer = require('puppeteer');
 async function fetchVideoDownloadUrl(youtubeUrl) {
   let browser;
   try {
-    // Launch a browser instance
-    const browser = await puppeteer.launch({ 
-  headless: true,   // Set this to false if you want to see the browser GUI
-  args: ['--no-sandbox', '--disable-setuid-sandbox']
-});
-    // set headless: true if you want it to run without opening the browser
-    const page = await browser.newPage();
+    // Launch the browser
+    browser = await puppeteer.launch({ 
+      headless: true,  // Set this to false if you want to see the browser GUI
+      args: ['--no-sandbox', '--disable-setuid-sandbox']  // Add the necessary flags
+    });
 
+    const page = await browser.newPage();
+    
     // Navigate to the page
     console.log('Navigating to the website...');
     await page.goto('https://yt.savetube.me/1kejjj1?id=361014378', { waitUntil: 'domcontentloaded' });
@@ -22,23 +22,28 @@ async function fetchVideoDownloadUrl(youtubeUrl) {
     console.log(`Entering YouTube URL: ${youtubeUrl}`);
     await page.type('input.search-input', youtubeUrl);
 
-    // Wait for the "Get Video" button to be clickable
+    // Wait for the "Get Video" button to be clickable and click it
     await page.waitForSelector('button[type="submit"]');
     console.log('Clicking the "Get Video" button...');
     await page.click('button[type="submit"]');
 
-    // Wait for the page to load the download link (this can take some time)
+    // Wait for the "Get Link" button to appear (This is the button we need to click to generate the download link)
+    await page.waitForSelector('button:has-text("Get Link")');
+    console.log('Clicking the "Get Link" button...');
+    await page.click('button:has-text("Get Link")');
+
+    // Wait for the download link to appear
     console.log('Waiting for the download link...');
     await page.waitForSelector('a[download]', { timeout: 60000 });  // Wait for the download link for up to 60 seconds
 
-    // Extract the download link from the page
+    // Extract the download URL from the page
     const downloadUrl = await page.evaluate(() => {
       const downloadLink = document.querySelector('a[download]');
       return downloadLink ? downloadLink.href : null;
     });
 
     if (downloadUrl) {
-      console.log('Download URL:', downloadUrl);
+      console.log('Download URL:', downloadUrl);  // Log the download URL
     } else {
       console.log('Download link not found.');
     }
