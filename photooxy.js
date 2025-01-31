@@ -1,9 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs');
-const path = require('path');
 
-class VideoDownloader {
+class VideoLinkExtractor {
   constructor() {
     this.baseUrl = 'https://yt.savetube.me'; // Base URL of the website
   }
@@ -49,36 +47,11 @@ class VideoDownloader {
   }
 
   /**
-   * Downloads the video and saves it to the specified path
-   * @param {string} downloadLink - The download link of the video
-   * @param {string} outputPath - The path to save the video
-   */
-  async downloadVideo(downloadLink, outputPath) {
-    try {
-      const response = await axios({
-        method: 'GET',
-        url: downloadLink,
-        responseType: 'stream',
-      });
-
-      const writer = fs.createWriteStream(outputPath);
-      response.data.pipe(writer);
-
-      return new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-    } catch (error) {
-      throw new Error(`Failed to download video: ${error.message}`);
-    }
-  }
-
-  /**
-   * Main function to download a video
+   * Main function to extract the download link
    * @param {string} videoUrl - The YouTube video URL
-   * @param {string} outputPath - The path to save the video
+   * @returns {Promise<string>} - The download link
    */
-  async download(videoUrl, outputPath) {
+  async getDownloadLink(videoUrl) {
     try {
       // Step 1: Submit the video URL and get the download page HTML
       const html = await this.getDownloadPage(videoUrl);
@@ -86,14 +59,12 @@ class VideoDownloader {
       // Step 2: Extract the download link from the HTML
       const downloadLink = this.extractDownloadLink(html);
 
-      // Step 3: Download the video using the extracted link
-      await this.downloadVideo(downloadLink, outputPath);
-
-      console.log('Video downloaded successfully!');
+      return downloadLink;
     } catch (error) {
       console.error(error.message);
+      throw new Error('Failed to extract the download link');
     }
   }
 }
 
-module.exports = VideoDownloader;
+module.exports = VideoLinkExtractor;
