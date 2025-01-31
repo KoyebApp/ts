@@ -29,36 +29,41 @@ class VideoLinkExtractor {
   }
 
   /**
-   * Extracts the download link from the HTML content
+   * Extracts the link from the "Get Link" button from the HTML content
    * @param {string} html - The HTML content of the download page
-   * @returns {string} - The download link
+   * @returns {string} - The link provided by the "Get Link" button
    */
-  extractDownloadLink(html) {
+  extractGetLinkButton(html) {
     const $ = cheerio.load(html);
 
-    // Look for the <a> tag that contains the download link, adjust the class selector
-    const downloadLink = $('a.bg-btn-accent-custom').attr('href');
-    
-    // If the link is found, return it
-    if (downloadLink) {
-      return downloadLink;
-    } else {
-      throw new Error('Download link not found.');
+    // Look for the button with text "Get Link"
+    const button = $('button').filter(function() {
+      return $(this).text().includes('Get Link');
+    });
+
+    // If the button is found, check its associated URL
+    if (button.length > 0) {
+      const link = button.parent('a').attr('href');
+      if (link) {
+        return link; // Return the link associated with the "Get Link" button
+      }
     }
+
+    throw new Error('Get Link button not found.');
   }
 
   /**
-   * Main function to extract the download link
+   * Main function to extract the download link from the "Get Link" button
    * @param {string} videoUrl - The YouTube video URL
-   * @returns {Promise<string>} - The download link
+   * @returns {Promise<string>} - The final download link
    */
   async getDownloadLink(videoUrl) {
     try {
       // Step 1: Submit the video URL and get the download page HTML
       const html = await this.getDownloadPage(videoUrl);
 
-      // Step 2: Extract the download link from the HTML
-      const downloadLink = this.extractDownloadLink(html);
+      // Step 2: Extract the link from the "Get Link" button
+      const downloadLink = this.extractGetLinkButton(html);
 
       return downloadLink;
     } catch (error) {
