@@ -1,4 +1,4 @@
-const VideoDownloader = require('./VideoDownloader');
+const VideoDownloader = require('./VideoLinkExtractor');
 const downloader = new VideoDownloader();
 
 (async () => {
