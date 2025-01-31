@@ -36,14 +36,15 @@ class VideoLinkExtractor {
   extractDownloadLink(html) {
     const $ = cheerio.load(html);
 
-    // Find the download button and extract the href attribute
+    // Look for the <a> tag that contains the download link, adjust the class selector
     const downloadLink = $('a.bg-btn-accent-custom').attr('href');
-
-    if (!downloadLink) {
-      throw new Error('Download link not found in the page.');
+    
+    // If the link is found, return it
+    if (downloadLink) {
+      return downloadLink;
+    } else {
+      throw new Error('Download link not found.');
     }
-
-    return downloadLink;
   }
 
   /**
