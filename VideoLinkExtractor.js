@@ -1,13 +1,15 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 
-class VideoLinkExtractor {
+class VideoDownloader {
   constructor() {
-    this.baseUrl = 'https://yt.savetube.me';
+    this.baseUrl = 'https://yt.savetube.me'; // Base URL of the website
   }
 
   /**
-   * Submits the YouTube video URL to retrieve the download page HTML
+   * Submits the YouTube video URL and retrieves the download page HTML
    * @param {string} videoUrl - The YouTube video URL
    * @returns {Promise<string>} - The HTML content of the download page
    */
@@ -29,64 +31,84 @@ class VideoLinkExtractor {
   }
 
   /**
-   * Extracts the URL to the next page where the "Get Link" button is located
+   * Simulate waiting for the "Get Link" button to appear and then extract the download link
    * @param {string} html - The HTML content of the download page
-   * @returns {string} - The URL for the next page
+   * @returns {string} - The download link
    */
-  extractNextPageLink(html) {
-    const $ = cheerio.load(html);
-    // Locate the "Get Link" button (or next page link)
-    const nextPageUrl = $('button:contains("Get Link")').parent('a').attr('href');
+  async waitForGetLink(html) {
+    let $ = cheerio.load(html);
 
-    if (!nextPageUrl) {
-      throw new Error('Get Link button or link not found.');
+    // Check if the "Get Link" button exists
+    let getLinkButton = $('button:contains("Get Link")');
+
+    // If the "Get Link" button doesn't exist yet, wait 30 seconds and retry
+    if (getLinkButton.length === 0) {
+      console.log('Waiting for 30 seconds for "Get Link" to appear...');
+      await new Promise(resolve => setTimeout(resolve, 30000)); // Wait for 30 seconds
+      // Reload the page and check again
+      html = await this.getDownloadPage(videoUrl);
+      $ = cheerio.load(html);
+      getLinkButton = $('button:contains("Get Link")');
     }
 
-    return nextPageUrl;
-  }
-
-  /**
-   * Extracts the final download link from the page where the actual video link is present
-   * @param {string} html - The HTML content of the next page
-   * @returns {string} - The final download link for the video
-   */
-  extractFinalDownloadLink(html) {
-    const $ = cheerio.load(html);
-    // Find the download link
-    const downloadLink = $('a.bg-btn-accent-custom').attr('href');
-
-    if (!downloadLink) {
-      throw new Error('Final download link not found.');
-    }
-
-    return downloadLink;
-  }
-
-  /**
-   * Main function to get the final video download link
-   * @param {string} videoUrl - The YouTube video URL
-   * @returns {Promise<string>} - The final download link for the video
-   */
-  async getDownloadLink(videoUrl) {
-    try {
-      // Step 1: Fetch the download page HTML
-      const firstPageHtml = await this.getDownloadPage(videoUrl);
-
-      // Step 2: Extract the next page link (which contains the "Get Link" button)
-      const nextPageUrl = this.extractNextPageLink(firstPageHtml);
-
-      // Step 3: Fetch the second page HTML
-      const secondPageResponse = await axios.get(nextPageUrl);
-      const secondPageHtml = secondPageResponse.data;
-
-      // Step 4: Extract the final download link
-      const downloadLink = this.extractFinalDownloadLink(secondPageHtml);
-
+    // Extract the final download link from the page
+    if (getLinkButton.length > 0) {
+      const downloadLink = getLinkButton.closest('a').attr('href'); // Get the download link from the "href" attribute
+      if (!downloadLink) {
+        throw new Error('Download link not found!');
+      }
       return downloadLink;
+    } else {
+      throw new Error('"Get Link" button not found after waiting.');
+    }
+  }
+
+  /**
+   * Main function to download a video
+   * @param {string} videoUrl - The YouTube video URL
+   * @param {string} outputPath - The path to save the video
+   */
+  async download(videoUrl, outputPath) {
+    try {
+      // Step 1: Submit the video URL and get the download page HTML
+      const html = await this.getDownloadPage(videoUrl);
+
+      // Step 2: Wait for the "Get Link" button to appear and extract the download link
+      const downloadLink = await this.waitForGetLink(html);
+
+      // Step 3: Download the video using the extracted link
+      await this.downloadVideo(downloadLink, outputPath);
+
+      console.log('Video downloaded successfully!');
     } catch (error) {
-      throw new Error(`Failed to get the download link: ${error.message}`);
+      console.error(error.message);
+    }
+  }
+
+  /**
+   * Downloads the video and saves it to the specified path
+   * @param {string} downloadLink - The download link of the video
+   * @param {string} outputPath - The path to save the video
+   */
+  async downloadVideo(downloadLink, outputPath) {
+    try {
+      const response = await axios({
+        method: 'GET',
+        url: downloadLink,
+        responseType: 'stream',
+      });
+
+      const writer = fs.createWriteStream(outputPath);
+      response.data.pipe(writer);
+
+      return new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+    } catch (error) {
+      throw new Error(`Failed to download video: ${error.message}`);
     }
   }
 }
 
-module.exports = VideoLinkExtractor;
+module.exports = VideoDownloader;
