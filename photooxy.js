@@ -1,133 +1,99 @@
-//―――――――――――――――――――――――――――――――――――――――――― ┏  Modules ┓ ―――――――――――――――――――――――――――――――――――――――――― \\
+const axios = require('axios');
+const cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
 
-const fetch = require("node-fetch");
-const cheerio = require("cheerio");
-const cookie = require("cookie");
-const axios = require('axios')
-const FormData = require("form-data");
+class VideoDownloader {
+  constructor() {
+    this.baseUrl = 'https://yt.savetube.me'; // Base URL of the website
+  }
 
-//―――――――――――――――――――――――――――――――――――――――――― ┏  Api Photooxy ┓ ―――――――――――――――――――――――――――――――――――――――――― \\
-
-async function getBuffer(url, options){
-	try {
-		options ? options : {}
-		const res = await axios({
-			method: "get",
-			url,
-			headers: {
-				'DNT': 1,
-				'Upgrade-Insecure-Request': 1
-			},
-			...options,
-			responseType: 'arraybuffer'
-		})
-		return res.data
-	} catch (err) {
-		return err
-	}
-}
-
-async function post(url, formdata = {}, cookies) {
-  let encode = encodeURIComponent;
-  let body = Object.keys(formdata)
-    .map((key) => {
-      let vals = formdata[key];
-      let isArray = Array.isArray(vals);
-      let keys = encode(key + (isArray ? "[]" : ""));
-      if (!isArray) vals = [vals];
-      let out = [];
-      for (let valq of vals) out.push(keys + "=" + encode(valq));
-      return out.join("&");
-    })
-    .join("&");
-  return await fetch(`${url}?${body}`, {
-    method: "GET",
-    headers: {
-      Accept: "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-      Cookie: cookies,
-    },
-  });
-}
-
-async function photooxy(url, text) {
-  const geturl = await fetch(url, {
-    method: "GET",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    },
-  });
-  const caritoken = await geturl.text();
-  let hasilcookie = geturl.headers
-    .get("set-cookie")
-    .split(",")
-    .map((v) => cookie.parse(v))
-    .reduce((a, c) => {
-      return { ...a, ...c };
-    }, {});
-  hasilcookie = {
-    __cfduid: hasilcookie.__cfduid,
-    PHPSESSID: hasilcookie.PHPSESSID,
-  };
-  hasilcookie = Object.entries(hasilcookie)
-    .map(([name, value]) => cookie.serialize(name, value))
-    .join("; ");
-  const $ = cheerio.load(caritoken);
-  const token = $('input[name="token"]').attr("value");
-  const form = new FormData();
-  if (typeof text === "string") text = [text];
-  for (let texts of text) form.append("text[]", texts);
-  form.append("submit", "Go");
-  form.append("token", token);
-  form.append("build_server", "https://e2.yotools.net");
-  form.append("build_server_id", 2);
-  const geturl2 = await fetch(url, {
-    method: "POST",
-    headers: {
-      Accept: "*/*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-      Cookie: hasilcookie,
-      ...form.getHeaders(),
-    },
-    body: form.getBuffer(),
-  });
-  const caritoken2 = await geturl2.text()
-  const $$ = cheerio.load(caritoken2)
-  const token2 = $$("#form_value").text()
-  if (!token2) throw new Error("Token Tidak Ditemukan!!");
-  const prosesimage = await post(
-    "https://photooxy.com/effect/create-image",
-    JSON.parse(token2),
-    hasilcookie
-  );
-  const hasil = await prosesimage.json();
-  const hassil = `https://e2.yotools.net/${hasil.image}`
-  const result = await getBuffer(hassil)
-  return result
-}
-
-// Test function to check if photooxy is working and retrieving data
-async function testPhotooxy() {
-  const testUrl = "https://photooxy.com/logo-and-text-effects/make-tik-tok-text-effect-375.html"; // Example URL (Replace with an actual URL)
-  const testText = "Sample Text";
-
-  try {
-    const imageData = await photooxy(testUrl, testText);
-
-    // Check if the result is not empty and contains image data
-    if (imageData) {
-      console.log("Test Passed: Image data successfully retrieved.");
-    } else {
-      console.error("Test Failed: No image data returned.");
+  /**
+   * Submits the YouTube video URL and retrieves the download page HTML
+   * @param {string} videoUrl - The YouTube video URL
+   * @returns {Promise<string>} - The HTML content of the download page
+   */
+  async getDownloadPage(videoUrl) {
+    try {
+      const response = await axios.post(
+        `${this.baseUrl}/1kejjj1`, // Endpoint for processing the video
+        new URLSearchParams({ id: videoUrl }), // Submit the video URL as form data
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to fetch download page: ${error.message}`);
     }
-  } catch (error) {
-    console.error("Test Failed: ", error.message);
+  }
+
+  /**
+   * Extracts the download link from the HTML content
+   * @param {string} html - The HTML content of the download page
+   * @returns {string} - The download link
+   */
+  extractDownloadLink(html) {
+    const $ = cheerio.load(html);
+
+    // Find the download button and extract the href attribute
+    const downloadLink = $('a.bg-btn-accent-custom').attr('href');
+
+    if (!downloadLink) {
+      throw new Error('Download link not found in the page.');
+    }
+
+    return downloadLink;
+  }
+
+  /**
+   * Downloads the video and saves it to the specified path
+   * @param {string} downloadLink - The download link of the video
+   * @param {string} outputPath - The path to save the video
+   */
+  async downloadVideo(downloadLink, outputPath) {
+    try {
+      const response = await axios({
+        method: 'GET',
+        url: downloadLink,
+        responseType: 'stream',
+      });
+
+      const writer = fs.createWriteStream(outputPath);
+      response.data.pipe(writer);
+
+      return new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+    } catch (error) {
+      throw new Error(`Failed to download video: ${error.message}`);
+    }
+  }
+
+  /**
+   * Main function to download a video
+   * @param {string} videoUrl - The YouTube video URL
+   * @param {string} outputPath - The path to save the video
+   */
+  async download(videoUrl, outputPath) {
+    try {
+      // Step 1: Submit the video URL and get the download page HTML
+      const html = await this.getDownloadPage(videoUrl);
+
+      // Step 2: Extract the download link from the HTML
+      const downloadLink = this.extractDownloadLink(html);
+
+      // Step 3: Download the video using the extracted link
+      await this.downloadVideo(downloadLink, outputPath);
+
+      console.log('Video downloaded successfully!');
+    } catch (error) {
+      console.error(error.message);
+    }
   }
 }
 
-// Call the test function
-testPhotooxy();
-
-module.exports = photooxy;
+module.exports = VideoDownloader;
