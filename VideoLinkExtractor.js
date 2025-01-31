@@ -3,11 +3,11 @@ const cheerio = require('cheerio');
 
 class VideoLinkExtractor {
   constructor() {
-    this.baseUrl = 'https://yt.savetube.me'; // Base URL of the website
+    this.baseUrl = 'https://yt.savetube.me';
   }
 
   /**
-   * Submits the YouTube video URL and retrieves the download page HTML
+   * Submits the YouTube video URL to retrieve the download page HTML
    * @param {string} videoUrl - The YouTube video URL
    * @returns {Promise<string>} - The HTML content of the download page
    */
@@ -29,46 +29,62 @@ class VideoLinkExtractor {
   }
 
   /**
-   * Extracts the link from the "Get Link" button from the HTML content
+   * Extracts the URL to the next page where the "Get Link" button is located
    * @param {string} html - The HTML content of the download page
-   * @returns {string} - The link provided by the "Get Link" button
+   * @returns {string} - The URL for the next page
    */
-  extractGetLinkButton(html) {
+  extractNextPageLink(html) {
     const $ = cheerio.load(html);
+    // Locate the "Get Link" button (or next page link)
+    const nextPageUrl = $('button:contains("Get Link")').parent('a').attr('href');
 
-    // Look for the button with text "Get Link"
-    const button = $('button').filter(function() {
-      return $(this).text().includes('Get Link');
-    });
-
-    // If the button is found, check its associated URL
-    if (button.length > 0) {
-      const link = button.parent('a').attr('href');
-      if (link) {
-        return link; // Return the link associated with the "Get Link" button
-      }
+    if (!nextPageUrl) {
+      throw new Error('Get Link button or link not found.');
     }
 
-    throw new Error('Get Link button not found.');
+    return nextPageUrl;
   }
 
   /**
-   * Main function to extract the download link from the "Get Link" button
+   * Extracts the final download link from the page where the actual video link is present
+   * @param {string} html - The HTML content of the next page
+   * @returns {string} - The final download link for the video
+   */
+  extractFinalDownloadLink(html) {
+    const $ = cheerio.load(html);
+    // Find the download link
+    const downloadLink = $('a.bg-btn-accent-custom').attr('href');
+
+    if (!downloadLink) {
+      throw new Error('Final download link not found.');
+    }
+
+    return downloadLink;
+  }
+
+  /**
+   * Main function to get the final video download link
    * @param {string} videoUrl - The YouTube video URL
-   * @returns {Promise<string>} - The final download link
+   * @returns {Promise<string>} - The final download link for the video
    */
   async getDownloadLink(videoUrl) {
     try {
-      // Step 1: Submit the video URL and get the download page HTML
-      const html = await this.getDownloadPage(videoUrl);
+      // Step 1: Fetch the download page HTML
+      const firstPageHtml = await this.getDownloadPage(videoUrl);
 
-      // Step 2: Extract the link from the "Get Link" button
-      const downloadLink = this.extractGetLinkButton(html);
+      // Step 2: Extract the next page link (which contains the "Get Link" button)
+      const nextPageUrl = this.extractNextPageLink(firstPageHtml);
+
+      // Step 3: Fetch the second page HTML
+      const secondPageResponse = await axios.get(nextPageUrl);
+      const secondPageHtml = secondPageResponse.data;
+
+      // Step 4: Extract the final download link
+      const downloadLink = this.extractFinalDownloadLink(secondPageHtml);
 
       return downloadLink;
     } catch (error) {
-      console.error(error.message);
-      throw new Error('Failed to extract the download link');
+      throw new Error(`Failed to get the download link: ${error.message}`);
     }
   }
 }
