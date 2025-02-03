@@ -4,26 +4,6 @@ const cookie = require("cookie");
 const axios = require('axios');
 const FormData = require("form-data");
 
-// Helper function to make a GET request and return a buffer (not used in final output)
-async function getBuffer(url, options) {
-  try {
-    options = options || {};
-    const res = await axios({
-      method: "get",
-      url,
-      headers: {
-        'DNT': 1,
-        'Upgrade-Insecure-Request': 1
-      },
-      ...options,
-      responseType: 'arraybuffer'
-    });
-    return res.data;
-  } catch (err) {
-    return err;
-  }
-}
-
 // Helper function to make a POST request (used for sending form data)
 async function post(url, formdata = {}, cookies) {
   let encode = encodeURIComponent;
@@ -55,7 +35,6 @@ async function textpro(url, text) {
   if (!/^https:\/\/textpro\.me\/.+\.html$/.test(url))
     throw new Error("Invalid URL!");
 
-  // Send GET request to fetch the page content
   const geturl = await fetch(url, {
     method: "GET",
     headers: {
@@ -66,7 +45,6 @@ async function textpro(url, text) {
   const caritoken = await geturl.text();
   console.log("Page HTML retrieved");
 
-  // Extract cookies from the response headers
   let hasilcookie = geturl.headers
     .get("set-cookie")
     .split(",")
@@ -75,16 +53,13 @@ async function textpro(url, text) {
       return { ...a, ...c };
     }, {});
 
-  // Log cookies for debugging
   console.log("Cookies extracted:", hasilcookie);
 
-  // Select the relevant cookies
   hasilcookie = {
     __cfduid: hasilcookie.__cfduid,
     PHPSESSID: hasilcookie.PHPSESSID,
   };
 
-  // Serialize cookies for the POST request
   hasilcookie = Object.entries(hasilcookie)
     .map(([name, value]) => cookie.serialize(name, value))
     .join("; ");
@@ -92,7 +67,6 @@ async function textpro(url, text) {
   const $ = cheerio.load(caritoken);
   const token = $('input[name="token"]').attr("value");
 
-  // Log token for debugging
   console.log("Token extracted:", token);
 
   if (!token) {
@@ -107,7 +81,6 @@ async function textpro(url, text) {
   form.append("build_server", "https://textpro.me");
   form.append("build_server_id", 1);
 
-  // Send POST request with form data to generate image
   const geturl2 = await fetch(url, {
     method: "POST",
     headers: {
@@ -128,28 +101,28 @@ async function textpro(url, text) {
 
   console.log("Second token extracted:", token2[1]);
 
-  // Send a POST request to create the image and get the response
+  // Attempt to log the full form data that is being sent
+  const formData = JSON.parse(token2[1]);
+  console.log("Form data sent for image generation:", formData);
+
   const prosesimage = await post(
     "https://textpro.me/effect/create-image",
-    JSON.parse(token2[1]),
+    formData,
     hasilcookie
   );
 
-  // Log the entire API response for debugging
   const hasil = await prosesimage.json();
   console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log full response for inspection
 
-  // Extract and return the processed image URL from the HTML response
   if (hasil.success === true && hasil.fullsize_image) {
     const imageUrl = `https://textpro.me${hasil.fullsize_image}`;
-    console.log("Processed Image URL:", imageUrl); // Log the final image URL
-    return imageUrl; // Return the image URL
+    console.log("Processed Image URL:", imageUrl);
+    return imageUrl;
   } else {
-    // Parse the page again to get the link if the image URL is not found
     const $2 = cheerio.load(caritoken2);
     const imageLink = $('#link-image').text().split(' ')[2];
     if (imageLink) {
-      console.log("Processed Image URL:", imageLink); // Log the final image URL from the div
+      console.log("Processed Image URL:", imageLink);
       return imageLink;
     } else {
       throw new Error("Failed to retrieve image URL from the page.");
@@ -159,14 +132,13 @@ async function textpro(url, text) {
 
 // Test function to check if textpro retrieves the expected URL
 async function testTextPro() {
-  const testUrl = "https://textpro.me/create-online-reflected-neon-text-effect-1157.html"; // Replace with a valid URL
+  const testUrl = "https://textpro.me/create-online-reflected-neon-text-effect-1157.html"; 
   const testText = ["Hello"];
 
   try {
     const result = await textpro(testUrl, testText);
-    console.log("Processed Image URL:", result); // Log the URL to check the result
+    console.log("Processed Image URL:", result);
 
-    // Ensure the result is a string and starts with the correct URL
     if (typeof result === "string" && result.startsWith("https://textpro.me")) {
       console.log("Test Passed: Image URL retrieved successfully.");
     } else {
