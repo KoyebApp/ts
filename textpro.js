@@ -55,6 +55,7 @@ async function textpro(url, text) {
   if (!/^https:\/\/textpro\.me\/.+\.html$/.test(url))
     throw new Error("Invalid URL!");
 
+  // Send GET request to fetch the page content
   const geturl = await fetch(url, {
     method: "GET",
     headers: {
@@ -63,6 +64,7 @@ async function textpro(url, text) {
   });
 
   const caritoken = await geturl.text();
+  console.log("Page HTML retrieved");
 
   // Extract cookies from the response headers
   let hasilcookie = geturl.headers
@@ -72,6 +74,9 @@ async function textpro(url, text) {
     .reduce((a, c) => {
       return { ...a, ...c };
     }, {});
+
+  // Log cookies for debugging
+  console.log("Cookies extracted:", hasilcookie);
 
   // Select the relevant cookies
   hasilcookie = {
@@ -86,6 +91,13 @@ async function textpro(url, text) {
 
   const $ = cheerio.load(caritoken);
   const token = $('input[name="token"]').attr("value");
+
+  // Log token for debugging
+  console.log("Token extracted:", token);
+
+  if (!token) {
+    throw new Error("Token not found! Please check if the page structure has changed.");
+  }
 
   const form = new FormData();
   if (typeof text === "string") text = [text];
@@ -109,8 +121,12 @@ async function textpro(url, text) {
   });
 
   const caritoken2 = await geturl2.text();
+  console.log("Form submitted, response received");
+
   const token2 = /<div.*?id="form_value".+>(.*?)<\/div>/.exec(caritoken2);
-  if (!token2) throw new Error("Token not found!");
+  if (!token2) throw new Error("Token not found in the response!");
+
+  console.log("Second token extracted:", token2[1]);
 
   // Send a POST request to create the image and get the response
   const prosesimage = await post(
@@ -124,7 +140,7 @@ async function textpro(url, text) {
   console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log full response for inspection
 
   // Extract and return the processed image URL from the HTML response
-  if (hasil && hasil.fullsize_image) {
+  if (hasil.success === true && hasil.fullsize_image) {
     const imageUrl = `https://textpro.me${hasil.fullsize_image}`;
     console.log("Processed Image URL:", imageUrl); // Log the final image URL
     return imageUrl; // Return the image URL
