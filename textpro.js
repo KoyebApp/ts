@@ -123,13 +123,21 @@ async function textpro(url, text) {
   const hasil = await prosesimage.json();
   console.log("API Response:", JSON.stringify(hasil, null, 2)); // Log full response for inspection
 
-  // Extract and return the processed image URL
+  // Extract and return the processed image URL from the HTML response
   if (hasil && hasil.fullsize_image) {
     const imageUrl = `https://textpro.me${hasil.fullsize_image}`;
     console.log("Processed Image URL:", imageUrl); // Log the final image URL
     return imageUrl; // Return the image URL
   } else {
-    throw new Error("Failed to retrieve image URL from response.");
+    // Parse the page again to get the link if the image URL is not found
+    const $2 = cheerio.load(caritoken2);
+    const imageLink = $('#link-image').text().split(' ')[2];
+    if (imageLink) {
+      console.log("Processed Image URL:", imageLink); // Log the final image URL from the div
+      return imageLink;
+    } else {
+      throw new Error("Failed to retrieve image URL from the page.");
+    }
   }
 }
 
