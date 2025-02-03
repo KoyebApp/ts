@@ -1,78 +1,68 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
-/**
- * Extracts the download link from SaveFrom.net
- * @param {string} videoUrl - The URL of the video to download
- * @returns {Promise<string>} - The download link
- */
-async function getDownloadLink(videoUrl) {
+const downloadVideo = async (videoUrl) => {
   try {
-    // Step 1: Send a POST request to SaveFrom.net with the video URL
-    const response = await axios.post(
-      'https://en.savefrom.net/download', // SaveFrom.net endpoint
-      new URLSearchParams({ url: videoUrl }), // Submit the video URL as form data
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        },
-      }
-    );
+    // Step 1: POST the video URL to the website (GetInDevice)
+    const postUrl = 'https://getindevice.com/';
+    const postData = {
+      url: videoUrl,  // Video URL to be posted
+    };
 
-    // Step 2: Load the HTML response into Cheerio
-    const $ = cheerio.load(response.data);
+    // Step 2: Use axios to post the video URL to GetInDevice and get the response page
+    const { data: initialHtml } = await axios.post(postUrl, postData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
 
-    // Step 3: Find the download link in the HTML
-    const downloadLink = $('a.download-link').attr('href');
-    if (!downloadLink) {
-      throw new Error('Download link not found in the HTML!');
+    // Step 3: Parse the HTML response using cheerio to find the "Download" button and the download page URL
+    const $ = cheerio.load(initialHtml);
+
+    // Step 4: Look for the "Download" button which should contain a link to the download page
+    const downloadButton = $('#downloadBtn');
+
+    if (downloadButton.length === 0) {
+      console.error('Download button not found!');
+      return;
     }
 
-    return downloadLink;
+    console.log('Download button found, now fetching download page...');
+
+    // Step 5: After clicking the download button, we extract the URL for the download page from the HTML
+    const downloadPageUrl = downloadButton.attr('href'); // This should be the link for the download page
+
+    if (!downloadPageUrl) {
+      console.error('Download page URL not found!');
+      return;
+    }
+
+    // Step 6: Fetch the download page to extract HD and SD video links
+    const { data: downloadPageHtml } = await axios.get(downloadPageUrl);
+    const $downloadPage = cheerio.load(downloadPageHtml);
+
+    // Step 7: Extract both HD and SD download links
+    const hdLink = $downloadPage('a[href*="download.php?media="]').first().attr('href');  // Find HD link
+    const sdLink = $downloadPage('a[href*="download.php?media="]').last().attr('href');   // Find SD link
+
+    // Step 8: Log the download links
+    if (hdLink) {
+      console.log('HD Link:', hdLink);
+    } else {
+      console.log('HD Link not found.');
+    }
+
+    if (sdLink) {
+      console.log('SD Link:', sdLink);
+    } else {
+      console.log('SD Link not found.');
+    }
+
   } catch (error) {
-    console.error('Error fetching download link:', error.message);
-    throw error;
+    console.error('Error:', error.message);
   }
-}
+};
 
-/**
- * Main function to download a video
- * @param {string} videoUrl - The URL of the video to download
- */
-async function downloadVideo(videoUrl) {
-  try {
-    // Step 1: Get the download link from SaveFrom.net
-    const downloadLink = await getDownloadLink(videoUrl);
-    console.log('Download Link:', downloadLink);
-
-    // Step 2: Download the video using the download link
-    const response = await axios({
-      method: 'GET',
-      url: downloadLink,
-      responseType: 'stream',
-    });
-
-    const outputPath = 'video.mp4'; // Save the video as video.mp4
-    const writer = fs.createWriteStream(outputPath);
-
-    response.data.pipe(writer);
-
-    return new Promise((resolve, reject) => {
-      writer.on('finish', () => {
-        console.log('Video downloaded successfully!');
-        resolve();
-      });
-      writer.on('error', reject);
-    });
-  } catch (error) {
-    console.error('Error downloading video:', error.message);
-  }
-}
-
-// Example usage
-(async () => {
-  const videoUrl = 'https://youtube.com/shorts/EmHgKJI7uaU?si=AsBMkVJwDiIveE5K'; // Replace with a valid YouTube URL
-  await downloadVideo(videoUrl);
-})();
+// Example video URL (GetInDevice URL with a Facebook share link)
+const videoUrl = 'https://getindevice.com/#url=https://www.facebook.com/share/v/1NEuZRfoKU/';
+downloadVideo(videoUrl);
