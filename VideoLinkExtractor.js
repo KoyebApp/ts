@@ -33,13 +33,15 @@ class VideoDownloader {
   /**
    * Simulate waiting for the "Get Link" button to appear and then extract the download link
    * @param {string} html - The HTML content of the download page
-   * @returns {string} - The download link
+   * @returns {Promise<string>} - The download link
    */
   async waitForGetLink(html) {
     let $ = cheerio.load(html);
 
-    // Check if the "Get Link" button exists
-    let getLinkButton = $('button:contains("Get Link")');
+    // Use a more specific selector to find the "Get Link" button
+    let getLinkButton = $('button').filter((i, el) => {
+      return $(el).text().trim() === 'Get Link';
+    });
 
     // If the "Get Link" button doesn't exist yet, wait 30 seconds and retry
     if (getLinkButton.length === 0) {
@@ -48,7 +50,9 @@ class VideoDownloader {
       // Reload the page and check again
       html = await this.getDownloadPage(videoUrl);
       $ = cheerio.load(html);
-      getLinkButton = $('button:contains("Get Link")');
+      getLinkButton = $('button').filter((i, el) => {
+        return $(el).text().trim() === 'Get Link';
+      });
     }
 
     // Extract the final download link from the page
