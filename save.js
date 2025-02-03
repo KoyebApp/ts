@@ -1,47 +1,63 @@
-const axios = require('axios');
-   const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 
-   const downloadVideo = async (videoUrl) => {
-     try {
-       const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
+const downloadVideo = async (videoUrl) => {
+  let browser;
+  try {
+    // Step 1: Launch a headless browser with sandbox and other security features disabled
+    browser = await puppeteer.launch({
+      headless: true, // Set to false to see the browser in action
+      args: [
+        '--no-sandbox', // Disables the sandbox
+        '--disable-setuid-sandbox', // Disables the setuid sandbox
+        '--disable-dev-shm-usage', // Disables shared memory usage (useful in Docker)
+        '--disable-accelerated-2d-canvas', // Disables hardware acceleration
+        '--disable-gpu', // Disables GPU hardware acceleration
+        '--no-zygote', // Disables the use of a zygote process
+      ],
+    });
 
-       // Add headers to mimic a browser request
-       const headers = {
-         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-         'Referer': 'https://getindevice.com/'
-       };
+    const page = await browser.newPage();
 
-       const { data: initialHtml } = await axios.get(getUrl, { headers });
+    // Step 2: Construct the URL for GetInDevice with the video URL
+    const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
 
-       const $ = cheerio.load(initialHtml);
-       const downloadButton = $('#downloadBtn');
+    // Step 3: Navigate to the page and wait for it to load
+    await page.goto(getUrl, { waitUntil: 'networkidle2' }); // Wait until the network is mostly idle
 
-       if (downloadButton.length === 0) {
-         console.error('Download button not found!');
-         return;
-       }
+    // Step 4: Wait for the download button to appear (if it's dynamically loaded)
+    await page.waitForSelector('#downloadBtn', { timeout: 5000 }); // Adjust timeout as needed
 
-       console.log('Download button found, now attempting to extract download links...');
+    // Step 5: Extract the HTML content after JavaScript has executed
+    const content = await page.content();
 
-       const hdLink = $('a[href*="download.php?media="]').first().attr('href');
-       const sdLink = $('a[href*="download.php?media="]').last().attr('href');
+    // Step 6: Use cheerio to parse the HTML and extract download links
+    const $ = require('cheerio').load(content);
+    const hdLink = $('a[href*="download.php?media="]').first().attr('href');
+    const sdLink = $('a[href*="download.php?media="]').last().attr('href');
 
-       if (hdLink) {
-         console.log('HD Link:', hdLink);
-       } else {
-         console.log('HD Link not found.');
-       }
+    // Step 7: Log the download links if found
+    if (hdLink) {
+      console.log('HD Link:', hdLink);
+    } else {
+      console.log('HD Link not found.');
+    }
 
-       if (sdLink) {
-         console.log('SD Link:', sdLink);
-       } else {
-         console.log('SD Link not found.');
-       }
+    if (sdLink) {
+      console.log('SD Link:', sdLink);
+    } else {
+      console.log('SD Link not found.');
+    }
 
-     } catch (error) {
-       console.error('Error:', error.message);
-     }
-   };
+  } catch (error) {
+    console.error('Error:', error.message);
+  } finally {
+    // Step 8: Close the browser
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
 
-   const videoUrl = 'https://www.facebook.com/share/v/1NEuZRfoKU/';
-   downloadVideo(videoUrl);
+// Example video URL (a Facebook share link in this case)
+const videoUrl = 'https://www.facebook.com/share/v/1NEuZRfoKU/';
+downloadVideo(videoUrl);
