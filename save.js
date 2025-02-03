@@ -1,18 +1,20 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
 
 const downloadVideo = async (videoUrl) => {
   let browser;
   try {
-    // Step 1: Launch a headless browser with sandbox and other security features disabled
+    // Step 1: Launch a headless browser
     browser = await puppeteer.launch({
       headless: true, // Set to false to see the browser in action
       args: [
-        '--no-sandbox', // Disables the sandbox
-        '--disable-setuid-sandbox', // Disables the setuid sandbox
-        '--disable-dev-shm-usage', // Disables shared memory usage (useful in Docker)
-        '--disable-accelerated-2d-canvas', // Disables hardware acceleration
-        '--disable-gpu', // Disables GPU hardware acceleration
-        '--no-zygote', // Disables the use of a zygote process
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--no-zygote',
       ],
     });
 
@@ -22,31 +24,49 @@ const downloadVideo = async (videoUrl) => {
     const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
 
     // Step 3: Navigate to the page and wait for it to load
-    await page.goto(getUrl, { waitUntil: 'networkidle2' }); // Wait until the network is mostly idle
+    await page.goto(getUrl, { waitUntil: 'networkidle2' });
 
-    // Step 4: Wait for the download button to appear (if it's dynamically loaded)
-    await page.waitForSelector('#downloadBtn', { timeout: 5000 }); // Adjust timeout as needed
+    // Step 4: Wait for the download button to appear
+    await page.waitForSelector('#downloadBtn', { timeout: 5000 });
 
-    // Step 5: Extract the HTML content after JavaScript has executed
-    const content = await page.content();
+    // Step 5: Click the download button to trigger the download process
+    await page.click('#downloadBtn');
 
-    // Step 6: Use cheerio to parse the HTML and extract download links
-    const $ = require('cheerio').load(content);
-    const hdLink = $('a[href*="download.php?media="]').first().attr('href');
-    const sdLink = $('a[href*="download.php?media="]').last().attr('href');
+    // Step 6: Wait for the download to complete (you may need to adjust this logic)
+    // Puppeteer doesn't natively handle file downloads, so we'll use a workaround.
+    // Listen for the "response" event to capture the download link.
+    let downloadLink;
+    page.on('response', async (response) => {
+      const url = response.url();
+      if (url.includes('download.php?media=')) {
+        downloadLink = url;
+        console.log('Download Link Found:', downloadLink);
+      }
+    });
 
-    // Step 7: Log the download links if found
-    if (hdLink) {
-      console.log('HD Link:', hdLink);
-    } else {
-      console.log('HD Link not found.');
+    // Wait for a few seconds to allow the download link to be captured
+    await page.waitForTimeout(5000);
+
+    if (!downloadLink) {
+      console.error('Download link not found!');
+      return;
     }
 
-    if (sdLink) {
-      console.log('SD Link:', sdLink);
-    } else {
-      console.log('SD Link not found.');
-    }
+    // Step 7: Use axios to download the file (optional)
+    const axios = require('axios');
+    const response = await axios.get(downloadLink, { responseType: 'stream' });
+    const filePath = path.join(__dirname, 'downloaded_video.mp4');
+    const writer = fs.createWriteStream(filePath);
+
+    response.data.pipe(writer);
+
+    writer.on('finish', () => {
+      console.log('Download completed! File saved as:', filePath);
+    });
+
+    writer.on('error', (err) => {
+      console.error('Error writing file:', err);
+    });
 
   } catch (error) {
     console.error('Error:', error.message);
