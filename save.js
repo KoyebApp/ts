@@ -1,50 +1,47 @@
 const axios = require('axios');
-const cheerio = require('cheerio');
+   const cheerio = require('cheerio');
 
-const downloadVideo = async (videoUrl) => {
-  try {
-    // Step 1: Construct the URL for GetInDevice with the video URL
-    const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
+   const downloadVideo = async (videoUrl) => {
+     try {
+       const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
 
-    // Step 2: Use axios to GET the page that contains the download options (this simulates the "clicking" of the button)
-    const { data: initialHtml } = await axios.get(getUrl);
+       // Add headers to mimic a browser request
+       const headers = {
+         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+         'Referer': 'https://getindevice.com/'
+       };
 
-    // Step 3: Parse the HTML response using cheerio
-    const $ = cheerio.load(initialHtml);
+       const { data: initialHtml } = await axios.get(getUrl, { headers });
 
-    // Step 4: Check if the "Download" button exists (this simulates the next step in the flow)
-    const downloadButton = $('#downloadBtn');
+       const $ = cheerio.load(initialHtml);
+       const downloadButton = $('#downloadBtn');
 
-    if (downloadButton.length === 0) {
-      console.error('Download button not found!');
-      return;
-    }
+       if (downloadButton.length === 0) {
+         console.error('Download button not found!');
+         return;
+       }
 
-    console.log('Download button found, now fetching download links...');
+       console.log('Download button found, now attempting to extract download links...');
 
-    // Step 5: Now, scrape the page for download links (HD and SD)
-    // We'll search for the anchor tags that contain the video download links
-    const hdLink = $('a[href*="download.php?media="]').first().attr('href');
-    const sdLink = $('a[href*="download.php?media="]').last().attr('href');
+       const hdLink = $('a[href*="download.php?media="]').first().attr('href');
+       const sdLink = $('a[href*="download.php?media="]').last().attr('href');
 
-    // Step 6: Log the download links if found
-    if (hdLink) {
-      console.log('HD Link:', hdLink);
-    } else {
-      console.log('HD Link not found.');
-    }
+       if (hdLink) {
+         console.log('HD Link:', hdLink);
+       } else {
+         console.log('HD Link not found.');
+       }
 
-    if (sdLink) {
-      console.log('SD Link:', sdLink);
-    } else {
-      console.log('SD Link not found.');
-    }
+       if (sdLink) {
+         console.log('SD Link:', sdLink);
+       } else {
+         console.log('SD Link not found.');
+       }
 
-  } catch (error) {
-    console.error('Error:', error.message);
-  }
-};
+     } catch (error) {
+       console.error('Error:', error.message);
+     }
+   };
 
-// Example video URL (a Facebook share link in this case)
-const videoUrl = 'https://www.facebook.com/share/v/1NEuZRfoKU/';
-downloadVideo(videoUrl);
+   const videoUrl = 'https://www.facebook.com/share/v/1NEuZRfoKU/';
+   downloadVideo(videoUrl);
