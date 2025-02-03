@@ -3,23 +3,16 @@ const cheerio = require('cheerio');
 
 const downloadVideo = async (videoUrl) => {
   try {
-    // Step 1: POST the video URL to the website (GetInDevice)
-    const postUrl = 'https://getindevice.com/';
-    const postData = {
-      url: videoUrl,  // Video URL to be posted
-    };
+    // Step 1: Construct the URL for GetInDevice with the video URL
+    const getUrl = `https://getindevice.com/#url=${encodeURIComponent(videoUrl)}`;
 
-    // Step 2: Use axios to post the video URL to GetInDevice and get the response page
-    const { data: initialHtml } = await axios.post(postUrl, postData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-    });
+    // Step 2: Use axios to GET the page that contains the download options (this simulates the "clicking" of the button)
+    const { data: initialHtml } = await axios.get(getUrl);
 
-    // Step 3: Parse the HTML response using cheerio to find the "Download" button and the download page URL
+    // Step 3: Parse the HTML response using cheerio
     const $ = cheerio.load(initialHtml);
 
-    // Step 4: Look for the "Download" button which should contain a link to the download page
+    // Step 4: Check if the "Download" button exists (this simulates the next step in the flow)
     const downloadButton = $('#downloadBtn');
 
     if (downloadButton.length === 0) {
@@ -27,25 +20,14 @@ const downloadVideo = async (videoUrl) => {
       return;
     }
 
-    console.log('Download button found, now fetching download page...');
+    console.log('Download button found, now fetching download links...');
 
-    // Step 5: After clicking the download button, we extract the URL for the download page from the HTML
-    const downloadPageUrl = downloadButton.attr('href'); // This should be the link for the download page
+    // Step 5: Now, scrape the page for download links (HD and SD)
+    // We'll search for the anchor tags that contain the video download links
+    const hdLink = $('a[href*="download.php?media="]').first().attr('href');
+    const sdLink = $('a[href*="download.php?media="]').last().attr('href');
 
-    if (!downloadPageUrl) {
-      console.error('Download page URL not found!');
-      return;
-    }
-
-    // Step 6: Fetch the download page to extract HD and SD video links
-    const { data: downloadPageHtml } = await axios.get(downloadPageUrl);
-    const $downloadPage = cheerio.load(downloadPageHtml);
-
-    // Step 7: Extract both HD and SD download links
-    const hdLink = $downloadPage('a[href*="download.php?media="]').first().attr('href');  // Find HD link
-    const sdLink = $downloadPage('a[href*="download.php?media="]').last().attr('href');   // Find SD link
-
-    // Step 8: Log the download links
+    // Step 6: Log the download links if found
     if (hdLink) {
       console.log('HD Link:', hdLink);
     } else {
@@ -63,6 +45,6 @@ const downloadVideo = async (videoUrl) => {
   }
 };
 
-// Example video URL (GetInDevice URL with a Facebook share link)
-const videoUrl = 'https://getindevice.com/#url=https://www.facebook.com/share/v/1NEuZRfoKU/';
+// Example video URL (a Facebook share link in this case)
+const videoUrl = 'https://www.facebook.com/share/v/1NEuZRfoKU/';
 downloadVideo(videoUrl);
